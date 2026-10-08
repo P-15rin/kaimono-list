@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>買う物リスト</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="買う物リスト">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column (max 640px) — summary, add form, filters, item cards with link previews. Prices set like a price tag. */
+:root{
+  --bg:#f3f6f5; --surface:#ffffff; --ink:#1c2827; --muted:#61716f; --line:#dbe3e1;
+  --accent:#0f766e; --accent-ink:#ffffff; --accent-soft:#e3f2ef;
+  --tag:#f6d55c; --tag-ink:#2a2304; --warn:#b45309; --warn-soft:#fdf0e1;
+  --danger:#b42318; --sat:#2f6fd6;
+  --f-body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Consolas,monospace;
+  --r:12px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#111716; --surface:#19211f; --ink:#e4ecea; --muted:#93a4a1; --line:#2b3735;
+  --accent:#34d1bd; --accent-ink:#06231f; --accent-soft:#16312d;
+  --tag:#e2bd3f; --tag-ink:#1f1902; --warn:#f3a54a; --warn-soft:#33240f; --danger:#ff7a6e; --sat:#7fb0ff;
+  color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1{font-size:1.4rem;font-weight:700;margin:0;letter-spacing:.02em}
+h2{font-size:1.05rem;margin:0}
+p{margin:0}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.8rem}
+a{color:var(--accent)}
+
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.headr{display:flex;align-items:center;gap:8px}
+.sync{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
+.sync.on i{background:var(--accent)}
+.sync.err i{background:var(--danger)}
+.iconbtn{font:inherit;font-size:.78rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 11px;cursor:pointer}
+
+.summary{display:grid;grid-template-columns:1.4fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.summary>div{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.summary .lbl{font-size:.72rem;color:var(--muted);letter-spacing:.06em}
+.summary .big{font-size:1.5rem;font-weight:600}
+.summary .mid{font-size:1rem;font-weight:600}
+.summary .next{grid-column:1/-1;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.form{display:flex;flex-direction:column;gap:12px}
+.form-title{font-size:.8rem;font-weight:700;color:var(--muted);letter-spacing:.08em}
+label.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+label.f>span{font-size:.72rem;color:var(--muted);letter-spacing:.04em}
+input[type=text],input[type=url],input[type=number],input[type=date],input[type=password]{
+  font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;padding:9px 10px;width:100%;min-width:0;min-height:42px;-webkit-appearance:none;appearance:none}
+input[type=date]{display:block}
+input[type=number]{font-family:var(--f-num)}
+input:focus-visible,button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:grid;gap:10px}
+.row.money{grid-template-columns:minmax(0,1.3fr) minmax(0,.7fr) minmax(0,1fr)}
+.row.dates{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.sub{display:flex;flex-direction:column;justify-content:flex-end;gap:4px}
+.sub>span{font-size:.72rem;color:var(--muted)}
+.sub b{font-family:var(--f-num);font-size:1.05rem;min-height:42px;display:flex;align-items:center;justify-content:flex-end;padding:0 10px;border-radius:8px;background:var(--tag);color:var(--tag-ink)}
+.datebox{display:flex;align-items:center;gap:6px}
+.datebox input{flex:1}
+.wd{font-size:.85rem;font-weight:700;min-width:2.2em;text-align:center}
+.wd.sat{color:var(--sat)}.wd.sun{color:var(--danger)}
+
+/* link preview */
+.pv{display:flex;gap:10px;align-items:center;min-width:0;padding:8px;border-radius:10px;background:var(--accent-soft);text-decoration:none;color:var(--ink)}
+.pv .th{flex:none;width:56px;height:56px;border-radius:8px;background:var(--surface);object-fit:contain}
+.pv .tx{min-width:0;display:flex;flex-direction:column;gap:1px}
+.pv .site{font-size:.7rem;font-weight:700;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv .ttl{font-size:.85rem;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pv .ds{font-size:.72rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.pvstate{font-size:.75rem;color:var(--muted)}
+.fillbtn{font:inherit;font-size:.75rem;border:none;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;padding:0}
+
+.btn{font:inherit;font-weight:700;border-radius:8px;padding:9px 14px;min-height:42px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:default}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
+.seg button{font:inherit;font-size:.82rem;border:none;background:none;color:var(--muted);padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);font-weight:700}
+select{font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+
+.list{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px}
+.item.done{opacity:.6}
+.item.done .name{text-decoration:line-through}
+.check{grid-row:1/span 3;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:none;cursor:pointer;margin-top:2px;display:grid;place-items:center;color:transparent;font-size:14px;font-weight:700;padding:0}
+.item.done .check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;min-width:0}
+.name{font-weight:700;font-size:1rem;min-width:0;overflow-wrap:anywhere}
+.price{flex:none;text-align:right}
+.price .t{font-family:var(--f-num);font-weight:600;font-size:1.05rem;background:var(--tag);color:var(--tag-ink);padding:1px 8px;border-radius:6px;display:inline-block}
+.price .calc{font-family:var(--f-num);font-size:.72rem;color:var(--muted);display:block;margin-top:2px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem;align-items:center}
+.meta .d{display:inline-flex;gap:5px;align-items:baseline}
+.meta .d .k{font-size:.7rem;color:var(--muted)}
+.pill{font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.pill.soon{border-color:var(--accent);color:var(--accent)}
+.pill.late{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.foot{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+.edit-btn{border:none;background:none;color:var(--muted);font:inherit;font-size:.78rem;cursor:pointer;padding:4px 2px;text-decoration:underline}
+.item .pv{grid-column:2}
+.item .form{grid-column:1/-1;margin-top:6px;padding-top:12px;border-top:1px dashed var(--line)}
+.confirm{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--danger)}
+.empty{text-align:center;padding:28px 16px;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r);font-size:.9rem}
+.notice{font-size:.8rem;background:var(--warn-soft);color:var(--warn);padding:8px 12px;border-radius:8px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:.85rem;z-index:10;max-width:calc(100% - 32px);text-align:center}
+
+/* setup */
+.setup{display:flex;flex-direction:column;gap:14px}
+.setup ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+.setup code{font-family:var(--f-num);font-size:.85em;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+.setup .err{color:var(--danger);font-size:.85rem}
+
+@media (max-width:420px){
+  .row.money{grid-template-columns:1fr 1fr}
+  .row.money .sub{grid-column:1/-1}
+  .row.dates{grid-template-columns:1fr}
+  .summary .big{font-size:1.3rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>買う物リスト</h1>
+    <div class="headr">
+      <span class="sync" id="sync"><i></i><span id="syncText">準備中</span></span>
+      <button type="button" class="iconbtn" id="refresh" hidden>更新</button>
+      <button type="button" class="iconbtn" id="settingsBtn" hidden>設定</button>
+    </div>
+  </div>
+
+  <!-- 初回設定 -->
+  <section class="card setup" id="setup" hidden>
+    <h2>この端末をリストにつなぐ</h2>
+    <p class="small">iPhone と PC で同じリストを見るために、リストの中身をあなたの GitHub アカウントの非公開メモ（Gist）に保存します。端末ごとに一度だけ、次の手順で「トークン」を入れてください。</p>
+    <ol class="small">
+      <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=kaimono-list" target="_blank" rel="noopener">トークン作成ページ</a>を開く（GitHub にログインした状態で）</li>
+      <li>「Expiration」で有効期限を選ぶ（<b>No expiration</b> にすると更新の手間がありません）</li>
+      <li><code>gist</code> にだけチェックが入っていることを確認し、下の「Generate token」を押す</li>
+      <li>表示された <code>ghp_</code> で始まる文字列をコピーして、下に貼り付ける</li>
+    </ol>
+    <p class="small muted">2台目の端末では、同じトークンを貼るか、同じ手順でもう1つ作ってください。トークンはこの端末の中にだけ保存され、メモ（Gist）の読み書き以外には使えません。</p>
+    <label class="f"><span>トークン</span><input type="password" id="tokenIn" autocomplete="off" placeholder="ghp_…"></label>
+    <p class="err" id="setupErr" hidden></p>
+    <div class="actions"><button type="button" class="btn primary" id="connect">つなぐ</button></div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="card setup" id="settings" hidden>
+    <h2>設定</h2>
+    <p class="small" id="acctInfo"></p>
+    <p class="small muted">保存先：GitHub の非公開 Gist（<a id="gistLink" href="#" target="_blank" rel="noopener">開く</a>）</p>
+    <div class="actions">
+      <button type="button" class="btn ghost danger" id="disconnect">この端末の接続を解除</button>
+      <button type="button" class="btn" id="closeSettings">閉じる</button>
+    </div>
+  </section>
+
+  <div id="main" hidden>
+    <div class="wrap" style="padding:0;gap:18px">
+      <div class="summary" aria-live="polite">
+        <div><span class="lbl">これから買う合計</span><span class="big num" id="sumTodo">¥0</span><span class="small muted" id="cntTodo">0件</span></div>
+        <div><span class="lbl">購入済み</span><span class="mid num" id="sumDone">¥0</span><span class="small muted" id="cntDone">0件</span></div>
+        <div class="next"><span class="lbl">次の購入予定</span><span id="nextBuy" class="small">—</span></div>
+      </div>
+
+      <div id="notice" class="notice" hidden></div>
+
+      <section class="card">
+        <form class="form" id="addForm" autocomplete="off" data-prefix="a">
+          <p class="form-title">追加する</p>
+          <label class="f"><span>URL（貼り付けるとページの内容を読み込みます）</span>
+            <input type="url" id="a-url" inputmode="url" placeholder="https://…">
+          </label>
+          <div id="a-prev" hidden></div>
+          <label class="f"><span>名前</span><input type="text" id="a-name" placeholder="商品名"></label>
+          <div class="row money">
+            <label class="f"><span>金額（円）</span><input type="number" id="a-price" inputmode="numeric" min="0" step="1" placeholder="0"></label>
+            <label class="f"><span>個数</span><input type="number" id="a-qty" inputmode="numeric" min="1" step="1" value="1"></label>
+            <div class="sub"><span>合計</span><b id="a-sub">¥0</b></div>
+          </div>
+          <div class="row dates">
+            <label class="f"><span>発売日</span><span class="datebox"><input type="date" id="a-rel"><span class="wd" id="a-rel-wd"></span></span></label>
+            <label class="f"><span>購入予定日</span><span class="datebox"><input type="date" id="a-buy"><span class="wd" id="a-buy-wd"></span></span></label>
+          </div>
+          <div class="actions"><button type="submit" class="btn primary" id="a-submit">リストに追加</button></div>
+        </form>
+      </section>
+
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="表示">
+          <button type="button" data-f="todo" aria-pressed="true">未購入</button>
+          <button type="button" data-f="done" aria-pressed="false">購入済み</button>
+          <button type="button" data-f="all" aria-pressed="false">すべて</button>
+        </div>
+        <select id="sort" aria-label="並び順">
+          <option value="buy">購入予定日順</option>
+          <option value="rel">発売日順</option>
+          <option value="new">追加が新しい順</option>
+          <option value="price">合計が高い順</option>
+        </select>
+      </div>
+
+      <div class="list" id="list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const yen = n => "¥" + Math.round(n||0).toLocaleString("ja-JP");
+  const WD = ["日","月","火","水","木","金","土"];
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  const LS = { token:"kl.token", gist:"kl.gist", cache:"kl.cache", view:"kl.view", login:"kl.login" };
+  const FILE = "kaimono-list.json";
+  const DESC = "kaimono-list data（買う物リスト）";
+  const ls = {
+    get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+    set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+    del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+  };
+
+  let token = ls.get(LS.token), gistId = ls.get(LS.gist);
+  let items = [];
+  let filter = "todo", sort = "buy", editingId = null, confirmId = null;
+  try{ const v = JSON.parse(ls.get(LS.view)||"{}"); if(v.filter) filter=v.filter; if(v.sort) sort=v.sort; }catch(e){}
+
+  /* ---------- toast / sync label ---------- */
+  let tt;
+  function toast(msg){ let t=$(".toast"); if(!t){ t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); document.body.appendChild(t);} t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true, 2200); }
+  function setSync(state, text){ const s=$("#sync"); s.classList.toggle("on", state==="on"); s.classList.toggle("err", state==="err"); $("#syncText").textContent=text; }
+  const hhmm = d => `${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;
+
+  /* ---------- dates ---------- */
+  function parseD(s){ if(!s) return null; const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
+  function today(){ const t=new Date(); return new Date(t.getFullYear(),t.getMonth(),t.getDate()); }
+  function daysTo(s){ const d=parseD(s); return d ? Math.round((d-today())/86400000) : null; }
+  function wdOf(s){ const d=parseD(s); return d ? d.getDay() : null; }
+  function fmtD(s){ const d=parseD(s); if(!d) return ""; const y = d.getFullYear()!==today().getFullYear() ? d.getFullYear()+"/" : ""; return `${y}${d.getMonth()+1}/${d.getDate()}`; }
+  function wdSpan(s){ const w=wdOf(s); if(w===null) return ""; return `<span class="wd ${w===6?"sat":w===0?"sun":""}">(${WD[w]})</span>`; }
+  function rel(n){ if(n===null) return ""; if(n===0) return "今日"; if(n===1) return "明日"; return n>0 ? `あと${n}日` : `${-n}日前`; }
+
+  /* ---------- URL helpers ---------- */
+  function parseUrl(u){ try{ const x=new URL(String(u||"").trim()); return /^https?:$/.test(x.protocol) ? x : null; }catch(e){ return null; } }
+  function slugOf(x){
+    const skip=/^(dp|gp|product|products|item|items|detail|details|goods|ref=.*|s|p|c|html?|index\.html?|ja|en|jp)$/i;
+    let best="", score=0;
+    for(const raw of x.pathname.split("/").filter(Boolean)){
+      let s; try{ s=decodeURIComponent(raw); }catch(e){ s=raw; }
+      if(skip.test(s)) continue;
+      const clean=s.replace(/\.(html?|php|aspx?)$/i,"").replace(/[-_+]+/g," ").trim();
+      if(!clean || /^[A-Za-z0-9]{6,}$/.test(clean) || /^\d+$/.test(clean)) continue;
+      const sc=(clean.match(/\p{L}/gu)||[]).length + (/[^\x00-\x7f]/.test(clean)?20:0) + (clean.split(" ").length-1)*3;
+      if(sc>score){ score=sc; best=clean; }
+    }
+    return score>=8 ? best : "";
+  }
+  const hostOf = x => x.hostname.replace(/^www\./,"");
+
+  /* ---------- link preview (Microlink) ---------- */
+  const pvCache = new Map();
+  function fetchPreview(url){
+    if(pvCache.has(url)) return pvCache.get(url);
+    const p = (async ()=>{
+      const r = await fetch("https://api.microlink.io/?url="+encodeURIComponent(url));
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok || j.status!=="success"){ const e=new Error("preview"); e.code = r.status===429 ? "limit" : "fail"; throw e; }
+      const d=j.data||{};
+      const text=[d.title,d.description].filter(Boolean).join(" ");
+      const m=text.match(/[¥￥]\s?([\d,]{3,})|([\d,]{3,})\s?円/);
+      const price = m ? +(m[1]||m[2]).replace(/,/g,"") : 0;
+      return {
+        title:(d.title||"").trim(), desc:(d.description||"").trim(),
+        image:(d.image&&d.image.url)||(d.logo&&d.logo.url)||"",
+        site:(d.publisher||"").trim(), price
+      };
+    })();
+    pvCache.set(url, p);
+    p.catch(()=>pvCache.delete(url));
+    return p;
+  }
+  function pvHtml(url, meta){
+    const x=parseUrl(url); if(!x) return "";
+    const m=meta||{};
+    const site = m.site || hostOf(x);
+    const ttl = m.title || slugOf(x) || x.href;
+    const img = m.image ? `<img class="th" src="${esc(m.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : "";
+    return `<a class="pv" href="${esc(x.href)}" target="_blank" rel="noopener noreferrer">${img}<span class="tx"><span class="site">${esc(site)} ↗</span><span class="ttl">${esc(ttl)}</span>${m.desc?`<span class="ds">${esc(m.desc)}</span>`:""}</span></a>`;
+  }
+
+  /* ---------- form wiring (add + edit) ---------- */
+  function wireForm(root, p, initialMeta){
+    const g = id => root.querySelector("#"+p+"-"+id);
+    let meta = initialMeta || null, metaUrl = initialMeta ? g("url").value.trim() : "", seq=0, timer;
+    const totals = () => {
+      g("sub").textContent = yen((+g("price").value||0)*(+g("qty").value||0));
+      for(const k of ["rel","buy"]){ const w=wdOf(g(k).value), el=g(k+"-wd"); el.textContent = w===null ? "" : `(${WD[w]})`; el.className="wd "+(w===6?"sat":w===0?"sun":""); }
+    };
+    const showPv = (state) => {
+      const box=g("prev"), url=g("url").value.trim(), x=parseUrl(url);
+      if(!x){ box.hidden=true; box.innerHTML=""; return; }
+      box.hidden=false;
+      let extra="";
+      if(state==="loading") extra=`<p class="pvstate">ページを読み込んでいます…</p>`;
+      else if(state==="limit") extra=`<p class="pvstate">今日の読み込み回数の上限に達しました。明日また読み込めます。</p>`;
+      else if(state==="fail") extra=`<p class="pvstate">このページは内容を読み込めませんでした（URLから分かる範囲で表示しています）。</p>`;
+      else if(meta && meta.title && g("name").value.trim() && g("name").value.trim()!==meta.title) extra=`<button type="button" class="fillbtn" data-fill>ページの商品名を名前に入れる</button>`;
+      box.innerHTML = pvHtml(url, metaUrl===url ? meta : null) + extra;
+      const fb = box.querySelector("[data-fill]"); if(fb) fb.onclick = () => { g("name").value = meta.title; showPv(); };
+    };
+    const load = async () => {
+      const url=g("url").value.trim();
+      if(!parseUrl(url)){ meta=null; metaUrl=""; showPv(); return; }
+      if(url===metaUrl && meta){ showPv(); return; }
+      const my=++seq; meta=null; metaUrl=url; showPv("loading");
+      try{
+        const m = await fetchPreview(url);
+        if(my!==seq) return;
+        meta=m;
+        if(!g("name").value.trim()) g("name").value = m.title || slugOf(parseUrl(url)) || "";
+        if(!(+g("price").value) && m.price) { g("price").value = m.price; totals(); }
+        showPv();
+      }catch(e){
+        if(my!==seq) return;
+        meta=null;
+        if(!g("name").value.trim()) g("name").value = slugOf(parseUrl(url)) || "";
+        showPv(e.code||"fail");
+      }
+    };
+    root.addEventListener("input", totals);
+    root.addEventListener("change", totals);
+    g("url").addEventListener("input", () => { clearTimeout(timer); timer=setTimeout(load, 500); });
+    g("url").addEventListener("change", load);
+    totals(); showPv();
+    return {
+      read: () => {
+        const url=g("url").value.trim();
+        const m = (meta && metaUrl===url) ? meta : null;
+        return {
+          url, name:g("name").value.trim(),
+          price:Math.max(0,Math.round(+g("price").value||0)),
+          qty:Math.max(1,Math.round(+g("qty").value||1)),
+          release:g("rel").value||"", buy:g("buy").value||"",
+          title:m?m.title:"", desc:m?m.desc:"", image:m?m.image:"", site:m?m.site:"",
+          _metaKnown: !!m
+        };
+      },
+      reset: () => { seq++; meta=null; metaUrl=""; totals(); showPv(); }
+    };
+  }
+
+  /* ---------- GitHub Gist storage ---------- */
+  async function gh(path, opt={}){
+    const r = await fetch("https://api.github.com"+path, {
+      method: opt.method||"GET", cache:"no-store",
+      headers: { "Accept":"application/vnd.github+json", "Authorization":"Bearer "+token, ...(opt.body?{"Content-Type":"application/json"}:{}) },
+      body: opt.body
+    });
+    if(!r.ok){ const e=new Error("github "+r.status); e.status=r.status; throw e; }
+    return r.status===204 ? null : r.json();
+  }
+  async function findOrCreateGist(){
+    for(let page=1; page<=10; page++){
+      const list = await gh(`/gists?per_page=100&page=${page}`);
+      const hit = list.find(g => g.files && g.files[FILE]);
+      if(hit) return hit.id;
+      if(list.length<100) break;
+    }
+    const g = await gh("/gists", { method:"POST", body: JSON.stringify({ description:DESC, public:false, files:{ [FILE]:{ content: JSON.stringify({version:1, items:[]}) } } }) });
+    return g.id;
+  }
+  async function pull(){
+    const g = await gh("/gists/"+gistId);
+    const f = g.files && g.files[FILE];
+    if(!f) return { version:1, items:[] };
+    let text = f.content;
+    if(f.truncated){ text = await (await fetch(f.raw_url, {cache:"no-store"})).text(); }
+    try{ const d=JSON.parse(text||"{}"); return { version:1, items: Array.isArray(d.items)?d.items:[] }; }catch(e){ return { version:1, items:[] }; }
+  }
+  async function push(data){
+    await gh("/gists/"+gistId, { method:"PATCH", body: JSON.stringify({ files:{ [FILE]:{ content: JSON.stringify(data, null, 1) } } }) });
+  }
+
+  function cacheItems(){ ls.set(LS.cache, JSON.stringify(items)); }
+
+  // 変更は「最新を取得 → 変更を当てる → 保存」の順で直列に実行（他端末の変更を消さないため）
+  let queue = Promise.resolve();
+  function mutate(fn, okMsg){
+    fn(items); cacheItems(); render();           // 先に画面へ反映
+    setSync("", "保存中…");
+    queue = queue.then(async () => {
+      try{
+        const data = await pull();
+        fn(data.items);
+        await push(data);
+        items = data.items; cacheItems(); render();
+        setSync("on", "保存 " + hhmm(new Date()));
+        if(okMsg) toast(okMsg);
+      }catch(e){ handleErr(e, true); }
+    });
+    return queue;
+  }
+  let pulling=false;
+  async function refresh(quiet){
+    if(!token || !gistId || pulling) return;
+    pulling=true;
+    if(!quiet) setSync("", "読み込み中…");
+    try{
+      await queue;
+      const data = await pull();
+      items = data.items; cacheItems(); render();
+      setSync("on", "同期 " + hhmm(new Date()));
+    }catch(e){ handleErr(e, false); }
+    pulling=false;
+  }
+  function handleErr(e, saving){
+    if(e.status===401){ setSync("err","接続が切れました"); showSetup("トークンが無効になっています。もう一度トークンを貼り付けてください。"); return; }
+    if(e.status===404){ ls.del(LS.gist); gistId=null; setSync("err","保存先が見つかりません"); showSetup("保存先のメモが見つかりませんでした。トークンを貼り直すと、つなぎ直します。"); return; }
+    if(e.status===403){ setSync("err","一時的に制限中"); toast("GitHub の利用回数が上限に達しました。少し待ってから「更新」を押してください。"); return; }
+    setSync("err", saving ? "保存できませんでした" : "オフライン");
+    toast(saving ? "保存できませんでした。通信を確認して「更新」を押してください。" : "通信できませんでした。前回の内容を表示しています。");
+  }
+
+  /* ---------- setup ---------- */
+  function showSetup(err){
+    $("#setup").hidden=false; $("#main").hidden=true; $("#settings").hidden=true;
+    $("#refresh").hidden=true; $("#settingsBtn").hidden=true;
+    const el=$("#setupErr"); el.hidden=!err; el.textContent=err||"";
+  }
+  function showMain(){
+    $("#setup").hidden=true; $("#main").hidden=false; $("#refresh").hidden=false; $("#settingsBtn").hidden=false;
+  }
+  $("#connect").addEventListener("click", async () => {
+    const t=$("#tokenIn").value.trim();
+    if(!t){ showSetup("トークンを貼り付けてください。"); return; }
+    const btn=$("#connect"); btn.disabled=true; btn.textContent="確認中…";
+    token=t;
+    try{
+      const u = await gh("/user");
+      gistId = await findOrCreateGist();
+      ls.set(LS.token, token); ls.set(LS.gist, gistId); ls.set(LS.login, u.login||"");
+      $("#tokenIn").value="";
+      showMain(); await refresh();
+      toast("つながりました");
+    }catch(e){
+      token=null;
+      showSetup(e.status===401 ? "トークンが正しくないようです。コピーし直して貼り付けてください。"
+              : e.status===403||e.status===404 ? "トークンに gist の権限がありません。作成時に gist にチェックを入れてください。"
+              : "GitHub に接続できませんでした。通信を確認してください。");
+    }
+    btn.disabled=false; btn.textContent="つなぐ";
+  });
+  $("#settingsBtn").addEventListener("click", () => {
+    const s=$("#settings"); s.hidden=!s.hidden;
+    $("#acctInfo").textContent = "GitHub アカウント：" + (ls.get(LS.login)||"不明");
+    $("#gistLink").href = "https://gist.github.com/" + gistId;
+  });
+  $("#closeSettings").addEventListener("click", () => $("#settings").hidden=true);
+  $("#disconnect").addEventListener("click", () => {
+    [LS.token, LS.gist, LS.cache, LS.login].forEach(ls.del);
+    token=null; gistId=null; items=[];
+    showSetup(); setSync("", "未接続");
+  });
+  $("#refresh").addEventListener("click", () => refresh());
+
+  /* ---------- add form ---------- */
+  const addF = wireForm($("#addForm"), "a");
+  $("#addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const d = addF.read();
+    if(!d.name && !d.url){ toast("名前かURLを入れてください"); $("#a-name").focus(); return; }
+    if(!d.name){ const x=parseUrl(d.url); d.name = d.title || (x ? (slugOf(x)||hostOf(x)) : d.url); }
+    delete d._metaKnown;
+    const it = { id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), ...d, done:false, createdAt:Date.now() };
+    mutate(list => { if(!list.some(i=>i.id===it.id)) list.push(it); }, "追加しました");
+    $("#addForm").reset(); $("#a-qty").value=1; addF.reset();
+    if(filter==="done") setFilter("todo");
+  });
+
+  /* ---------- toolbar ---------- */
+  function saveView(){ ls.set(LS.view, JSON.stringify({filter,sort})); }
+  function setFilter(f){ filter=f; document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.f===f))); saveView(); render(); }
+  document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click", ()=>setFilter(b.dataset.f)));
+  $("#sort").value=sort;
+  $("#sort").addEventListener("change", e=>{ sort=e.target.value; saveView(); render(); });
+
+  /* ---------- render ---------- */
+  function sorted(list){
+    const key = sort==="buy" ? "buy" : sort==="rel" ? "release" : null;
+    return list.slice().sort((a,b)=>{
+      if(sort==="new") return (b.createdAt||0)-(a.createdAt||0);
+      if(sort==="price") return (b.price||0)*(b.qty||1)-(a.price||0)*(a.qty||1);
+      const av=a[key]||"9999", bv=b[key]||"9999";
+      return av<bv?-1:av>bv?1:(a.createdAt||0)-(b.createdAt||0);
+    });
+  }
+  function summary(){
+    const todo=items.filter(i=>!i.done), done=items.filter(i=>i.done);
+    const sum=l=>l.reduce((s,i)=>s+(i.price||0)*(i.qty||1),0);
+    $("#sumTodo").textContent=yen(sum(todo)); $("#cntTodo").textContent=todo.length+"件";
+    $("#sumDone").textContent=yen(sum(done)); $("#cntDone").textContent=done.length+"件";
+    const nx=todo.filter(i=>i.buy && daysTo(i.buy)>=0).sort((a,b)=>a.buy<b.buy?-1:1)[0];
+    $("#nextBuy").innerHTML = nx ? `<b class="num">${fmtD(nx.buy)}</b>${wdSpan(nx.buy)} <span class="muted">${rel(daysTo(nx.buy))}</span> · ${esc(nx.name)}` : `<span class="muted">予定日のある未購入品はありません</span>`;
+  }
+  function itemHtml(i){
+    const sub=(i.price||0)*(i.qty||1), rd=daysTo(i.release), bd=daysTo(i.buy);
+    let pills="";
+    if(i.release) pills += rd>0 ? `<span class="pill ${rd<=7?"soon":""}">発売前</span>` : `<span class="pill">発売済</span>`;
+    if(!i.done && i.buy && bd<0) pills += `<span class="pill late">予定日を過ぎています</span>`;
+    else if(!i.done && i.buy && bd<=3) pills += `<span class="pill soon">もうすぐ購入</span>`;
+    const dates=[
+      i.release ? `<span class="d"><span class="k">発売</span><b class="num">${fmtD(i.release)}</b>${wdSpan(i.release)}<span class="muted small">${!i.done&&rd>=0?rel(rd):""}</span></span>` : "",
+      i.buy ? `<span class="d"><span class="k">購入予定</span><b class="num">${fmtD(i.buy)}</b>${wdSpan(i.buy)}<span class="muted small">${!i.done?rel(bd):""}</span></span>` : ""
+    ].join("");
+    const meta={title:i.title,desc:"",image:i.image,site:i.site};
+    return `
+      <button class="check" data-act="toggle" aria-label="${i.done?"未購入に戻す":"購入済みにする"}" aria-pressed="${!!i.done}">✓</button>
+      <div class="top"><div class="name">${esc(i.name)}</div>
+        <div class="price"><span class="t">${yen(sub)}</span><span class="calc">${yen(i.price)} × ${i.qty||1}</span></div></div>
+      ${(dates||pills)?`<div class="meta">${dates}${pills}</div>`:""}
+      ${i.url ? pvHtml(i.url, meta) : ""}
+      <div class="foot"><button class="edit-btn" data-act="edit">編集</button></div>
+      ${confirmId===i.id ? `<div class="confirm">「${esc(i.name)}」を削除しますか？<button class="btn danger" data-act="del-yes">削除する</button><button class="btn ghost" data-act="del-no">やめる</button></div>` : ""}`;
+  }
+  function editHtml(i, p){
+    return `<div class="form">
+      <label class="f"><span>URL</span><input type="url" id="${p}-url" inputmode="url" value="${esc(i.url)}"></label>
+      <div id="${p}-prev" hidden></div>
+      <label class="f"><span>名前</span><input type="text" id="${p}-name" value="${esc(i.name)}"></label>
+      <div class="row money">
+        <label class="f"><span>金額（円）</span><input type="number" id="${p}-price" inputmode="numeric" min="0" value="${i.price||0}"></label>
+        <label class="f"><span>個数</span><input type="number" id="${p}-qty" inputmode="numeric" min="1" value="${i.qty||1}"></label>
+        <div class="sub"><span>合計</span><b id="${p}-sub"></b></div>
+      </div>
+      <div class="row dates">
+        <label class="f"><span>発売日</span><span class="datebox"><input type="date" id="${p}-rel" value="${esc(i.release)}"><span class="wd" id="${p}-rel-wd"></span></span></label>
+        <label class="f"><span>購入予定日</span><span class="datebox"><input type="date" id="${p}-buy" value="${esc(i.buy)}"><span class="wd" id="${p}-buy-wd"></span></span></label>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost danger" data-act="del">削除</button>
+        <button type="button" class="btn ghost" data-act="cancel">キャンセル</button>
+        <button type="button" class="btn primary" data-act="save">保存</button>
+      </div></div>`;
+  }
+
+  const editNodes = new Map();
+  function render(){
+    summary();
+    const list=$("#list");
+    if(editingId && !items.some(i=>i.id===editingId)){ editingId=null; }
+    const shown = sorted(items.filter(i => filter==="all" || (filter==="done")===!!i.done));
+    const frag=document.createDocumentFragment();
+    for(const i of shown){
+      if(i.id===editingId && editNodes.has(i.id)){ frag.appendChild(editNodes.get(i.id)); continue; }
+      const el=document.createElement("article");
+      el.className="item"+(i.done?" done":""); el.dataset.id=i.id;
+      el.innerHTML=itemHtml(i);
+      if(i.id===editingId){
+        const p="e"+i.id.replace(/[^\w]/g,"");
+        el.insertAdjacentHTML("beforeend", editHtml(i,p));
+        el._form = wireForm(el.querySelector(".form"), p, i.title||i.image ? {title:i.title||"",desc:i.desc||"",image:i.image||"",site:i.site||""} : null);
+        editNodes.set(i.id, el);
+      }
+      frag.appendChild(el);
+    }
+    list.replaceChildren(frag);
+    if(!shown.length){
+      list.innerHTML = `<div class="empty">${items.length ? (filter==="done"?"購入済みの物はまだありません":"未購入の物はありません") : "まだ何もありません。上の欄にURLを貼り付けるか名前を入れて「リストに追加」を押すと、ここに並びます。"}</div>`;
+    }
+  }
+
+  $("#list").addEventListener("click", e => {
+    const b=e.target.closest("[data-act]"); if(!b) return;
+    const el=b.closest(".item"); const id=el && el.dataset.id; const it=items.find(i=>i.id===id); if(!it) return;
+    const act=b.dataset.act;
+    if(act==="toggle"){ const v=!it.done; mutate(l=>{ const x=l.find(i=>i.id===id); if(x) x.done=v; }, v?"購入済みにしました":"未購入に戻しました"); }
+    else if(act==="edit"){ editNodes.delete(id); editingId = editingId===id ? null : id; confirmId=null; render(); }
+    else if(act==="cancel"){ editNodes.delete(id); editingId=null; render(); }
+    else if(act==="save"){
+      const d=el._form.read();
+      if(!d.name){ const x=parseUrl(d.url); d.name = d.title || (x ? (slugOf(x)||hostOf(x)) : "(名前なし)"); }
+      if(!d._metaKnown){ if(d.url===it.url){ delete d.title; delete d.desc; delete d.image; delete d.site; } }
+      delete d._metaKnown;
+      editNodes.delete(id); editingId=null;
+      mutate(l=>{ const x=l.find(i=>i.id===id); if(x) Object.assign(x,d); }, "保存しました");
+    }
+    else if(act==="del"){ editNodes.delete(id); editingId=null; confirmId=id; render(); }
+    else if(act==="del-no"){ confirmId=null; render(); }
+    else if(act==="del-yes"){ confirmId=null; mutate(l=>{ const k=l.findIndex(i=>i.id===id); if(k>=0) l.splice(k,1); }, "削除しました"); }
+  });
+
+  /* ---------- start ---------- */
+  setFilter(filter);
+  if(token && gistId){
+    try{ items = JSON.parse(ls.get(LS.cache)||"[]"); }catch(e){ items=[]; }
+    showMain(); render(); refresh();
+  } else {
+    showSetup(); setSync("", "未接続");
+  }
+  // 他の端末での変更を取り込む
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") refresh(true); });
+  setInterval(() => { if(document.visibilityState==="visible" && !editingId) refresh(true); }, 60000);
+})();
+</script>
+</body>
+</html>
